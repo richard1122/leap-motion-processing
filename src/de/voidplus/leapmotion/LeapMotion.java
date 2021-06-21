@@ -1,8 +1,6 @@
 package de.voidplus.leapmotion;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 import com.leapmotion.leap.Controller.PolicyFlag;
 import com.leapmotion.leap.Frame;
@@ -53,6 +51,15 @@ public class LeapMotion {
     private final Controller controller;
     private final Listener listener;
 
+    private final static Set<String> gestureSupported = new HashSet<String>();
+    private final Map<String, Object> gestureMap = new HashMap<String, Object>();
+    private final Map<String, Integer> gestureStateMap = new HashMap<String, Integer>();
+    static {
+        gestureSupported.add("leapOnSwipeGesture");
+        gestureSupported.add("leapOnCircleGesture");
+        gestureSupported.add("leapOnScreenTapGesture");
+        gestureSupported.add("leapOnKeyTapGesture");
+    }
 
     /**
      * LeapMotion constructor to initialize the controller and listener.
@@ -914,7 +921,13 @@ public class LeapMotion {
      * Run the recognizer before sketch drawing.
      */
     public void pre() {
+        cleanGestures();
         this.check();
+    }
+
+    private void cleanGestures() {
+        gestureMap.clear();
+        gestureStateMap.clear();
     }
 
     /**
@@ -1342,6 +1355,7 @@ public class LeapMotion {
      * @param obj    Content of argument
      */
     private void dispatch(final String method, Class clazz, Object obj) {
+        interceptGestureMap(method, obj, null);
         boolean success = false;
         try {
             this.parent.getClass().getMethod(
@@ -1361,6 +1375,24 @@ public class LeapMotion {
         }
     }
 
+    private void interceptGestureMap(String gestureName, Object obj, Object state) {
+        if (!gestureSupported.contains(gestureName)) return;
+        gestureMap.put(gestureName, obj);
+        if (state != null) {
+            gestureStateMap.put(gestureName, (Integer) state);
+        }
+    }
+
+    public de.voidplus.leapmotion.Gesture getGestureByName(String name) {
+        if (!gestureSupported.contains(name)) return null;
+        return (de.voidplus.leapmotion.Gesture) gestureMap.get(name);
+    }
+
+    public int getGestureStateByName(String name) {
+        if (getGestureByName(name) == null) return -1;
+        return gestureStateMap.get(name);
+    }
+
     /**
      * Method to invoke callbacks with two arguments.
      *
@@ -1374,6 +1406,7 @@ public class LeapMotion {
                           Class clazz_1, Class clazz_2,
                           Object obj_1, Object obj_2
     ) {
+        interceptGestureMap(method, obj_1, obj_2);
         boolean success = false;
         try {
             this.parent.getClass().getMethod(
